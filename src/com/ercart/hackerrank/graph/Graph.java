@@ -1,4 +1,4 @@
-package com.ercart.graph;
+package com.ercart.hackerrank.graph;
 
 
 import java.util.ArrayList;
