@@ -1,8 +1,9 @@
 package com.ercart.kata;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author dkyryk
@@ -15,34 +16,39 @@ public class ConwayLife {
         return life.transformToRawState();
     }
 
-    private final Cell[][] universe;
+    private final Map<Coordinates, Cell> world;
 
-    private ConwayLife(int[][] cells) {
-        universe = new Cell[cells.length + 2][];
+    public ConwayLife(int[][] cells) {
 
-        universe[0] = new Cell[cells[0].length + 2];
-        for (int j = 0; j < universe[0].length; j++) {
-            universe[0][j] = new Cell(CellState.UNKNOWN.stateCode, 0, j);
-        }
-        universe[universe.length - 1] = new Cell[cells[cells.length - 1].length + 2];
-        for (int j = 0; j < universe[universe.length - 1].length; j++) {
-            universe[universe.length - 1][j] = new Cell(CellState.UNKNOWN.stateCode, universe.length - 1, j);
+        world = new ConcurrentHashMap<>();
+
+        for (int j = 0; j < cells[0].length + 2; j++) {
+            addNewCellToWorld(CellState.DEAD, 0, j);
+            addNewCellToWorld(CellState.DEAD, cells.length + 1, j);
         }
         for (int i = 0; i < cells.length; i++) {
-            universe[i + 1] = new Cell[cells[i].length + 2];
-
-            universe[i + 1][0] = new Cell(CellState.UNKNOWN.stateCode, i + 1, 0);
-            universe[i + 1][universe[i + 1].length - 1] = new Cell(CellState.UNKNOWN.stateCode, i + 1, universe[i + 1].length - 1);
+            addNewCellToWorld(CellState.DEAD, i + 1, 0);
+            addNewCellToWorld(CellState.DEAD, i + 1, cells[i].length + 1);
             for (int j = 0; j < cells[i].length; j++) {
-                universe[i + 1][j + 1] = new Cell(cells[i][j], i + 1, j + 1);
+                CellState state = CellState.resolveFromCode(cells[i][j]);
+                addNewCellToWorld(state, i + 1, j + 1);
             }
         }
     }
 
+    private void addNewCellToWorld(CellState state, int y, int x) {
+        Coordinates coordinates = new Coordinates(x, y);
+        if (!world.containsKey(coordinates)) {
+            Cell cell = new Cell(state, x, y);
+            world.put(coordinates, cell);
+        }
+    }
+
     private void printState() {
-        for (int i = 0; i < universe.length; i++) {
-            for (int j = 0; j < universe[i].length; j++) {
-                System.out.printf("|%2d|", universe[i][j].getState().stateCode);
+        int[][] rawState = transformToRawState();
+        for (int i = 0; i < rawState.length; i++) {
+            for (int j = 0; j < rawState[i].length; j++) {
+                System.out.printf("|%2d|", rawState[i][j]);
             }
             System.out.println();
         }
@@ -50,21 +56,39 @@ public class ConwayLife {
 
     private void progress(int generations) {
         for (int i = 0; i < generations; i++) {
-            Arrays.stream(universe).flatMap(Arrays::stream)
-                    .filter((Cell cell) -> cell.getState() != CellState.UNKNOWN)
-                    .forEach((Cell cell) -> cell.calculateEvolution(universe));
-            Arrays.stream(universe).flatMap(Arrays::stream)
-                    .filter((Cell cell) -> cell.getState() != CellState.UNKNOWN)
-                    .forEach(Cell::evolve);
+            world.values().stream().forEach(Cell::calculateEvolution);
+            world.values().stream().forEach(Cell::evolve);
         }
     }
 
     private int[][] transformToRawState() {
-        int[][] rawState = new int[universe.length - 2][];
-        for (int i = 0; i < rawState.length; i++) {
-            rawState[i] = new int[universe[i + 1].length - 2];
-            for (int j = 0; j < rawState[i].length; j++) {
-                rawState[i][j] = universe[i + 1][j + 1].getState().stateCode;
+
+        int minX = world.keySet().stream()
+                .filter(coordinates -> world.get(coordinates).getState() == CellState.ALIVE)
+                .mapToInt(coord -> coord.x).min().orElse(0);
+        int maxX = world.keySet().stream()
+                .filter(coordinates -> world.get(coordinates).getState() == CellState.ALIVE)
+                .mapToInt(coord -> coord.x).max().orElse(0);
+        int minY = world.keySet().stream()
+                .filter(coordinates -> world.get(coordinates).getState() == CellState.ALIVE)
+                .mapToInt(coord -> coord.y).min().orElse(0);
+        int maxY = world.keySet().stream()
+                .filter(coordinates -> world.get(coordinates).getState() == CellState.ALIVE)
+                .mapToInt(coord -> coord.y).max().orElse(0);
+
+        int width = maxX - minX + 1;
+        int height = maxY - minY + 1;
+
+        int[][] rawState = new int[height][];
+        for (int i = 0, y = minY; i < height; i++, y++) {
+            rawState[i] = new int[width];
+            for (int j = 0, x = minX; j < width; j++, x++) {
+                Coordinates coordinates = new Coordinates(x, y);
+                if (world.containsKey(coordinates)) {
+                    rawState[i][j] = world.get(coordinates).getState().stateCode;
+                } else {
+                    rawState[i][j] = 0;
+                }
             }
         }
 
@@ -72,31 +96,31 @@ public class ConwayLife {
     }
 
     private class Cell {
-        private int row;
-        private int column;
+        private int x;
+        private int y;
         private CellState state;
         private CellEvolution evolution;
 
-        private Cell(int stateCode, int row, int column) {
-            this.row = row;
-            this.column = column;
-            this.state = CellState.resolveFromCode(stateCode);
+        private Cell(CellState state, int x, int y) {
+            this.y = y;
+            this.x = x;
+            this.state = state;
             this.evolution = CellEvolution.INTACT;
         }
 
-        public void calculateEvolution(Cell[][] world) {
+        public void calculateEvolution() {
             if (state == CellState.UNKNOWN) {
                 return;
             }
             List<Cell> neighbors = new ArrayList<>();
-            neighbors.add(world[row - 1][column - 1]);
-            neighbors.add(world[row - 1][column]);
-            neighbors.add(world[row - 1][column + 1]);
-            neighbors.add(world[row][column - 1]);
-            neighbors.add(world[row][column + 1]);
-            neighbors.add(world[row + 1][column - 1]);
-            neighbors.add(world[row + 1][column]);
-            neighbors.add(world[row + 1][column + 1]);
+            addExistingNeighbor(neighbors, x - 1, y - 1);
+            addExistingNeighbor(neighbors, x - 1, y);
+            addExistingNeighbor(neighbors, x - 1, y + 1);
+            addExistingNeighbor(neighbors, x + 1, y - 1);
+            addExistingNeighbor(neighbors, x + 1, y);
+            addExistingNeighbor(neighbors, x + 1, y + 1);
+            addExistingNeighbor(neighbors, x, y - 1);
+            addExistingNeighbor(neighbors, x, y + 1);
 
             long aliveNeighborsCount = neighbors.stream().filter((Cell cell) -> cell.getState() == CellState.ALIVE).count();
             switch (state) {
@@ -119,13 +143,19 @@ public class ConwayLife {
                     break;
                 }
             }
-
+        }
+        private void addExistingNeighbor(List<Cell> neighbors, int x, int y) {
+            Coordinates coordinates = new Coordinates(x, y);
+            if (world.containsKey(coordinates)) {
+                neighbors.add(world.get(coordinates));
+            }
         }
 
         public void evolve() {
             switch (evolution) {
                 case BORN: {
                     this.state = CellState.ALIVE;
+                    createMissingDeadNeighbors();
                     break;
                 }
                 case DIE: {
@@ -138,8 +168,51 @@ public class ConwayLife {
             }
         }
 
+        private void createMissingDeadNeighbors() {
+            addNewCellToWorld(CellState.DEAD, y - 1, x - 1);
+            addNewCellToWorld(CellState.DEAD, y - 1, x);
+            addNewCellToWorld(CellState.DEAD, y - 1, x + 1);
+            addNewCellToWorld(CellState.DEAD, y + 1, x - 1);
+            addNewCellToWorld(CellState.DEAD, y + 1, x);
+            addNewCellToWorld(CellState.DEAD, y + 1, x + 1);
+            addNewCellToWorld(CellState.DEAD, y, x - 1);
+            addNewCellToWorld(CellState.DEAD, y, x + 1);
+        }
+
         public CellState getState() {
             return state;
+        }
+    }
+
+    private class Coordinates {
+        private final int x;
+        private final int y;
+
+        public Coordinates(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            Coordinates that = (Coordinates) o;
+
+            return x == that.x && y == that.y;
+
+        }
+
+        @Override
+        public int hashCode() {
+            int result = x;
+            result = 31 * result + y;
+            return result;
         }
     }
 
