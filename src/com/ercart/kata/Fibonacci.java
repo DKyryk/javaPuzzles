@@ -15,7 +15,15 @@ public class Fibonacci {
         } else {
 
             Fibonacci fibonacci = new Fibonacci();
-            return fibonacci.calculateMatrices(n);
+            if (n.compareTo(BigInteger.ZERO) < 0) {
+                if (n.negate().mod(BigInteger.valueOf(2)).equals(BigInteger.ONE)) {
+                    return fibonacci.calculateMatrices(n.negate());
+                } else {
+                    return fibonacci.calculateMatrices(n.negate()).negate();
+                }
+            } else {
+                return fibonacci.calculateMatrices(n);
+            }
         }
     }
 
@@ -34,31 +42,32 @@ public class Fibonacci {
 
 
     public BigInteger calculateMatrices(BigInteger n) {
-        long[][] result = {{1, 0}, {0, 1}};
-        long[][] transformMatrix = new long[][] {{1,1},{1,0}};
+        BigInteger[][] result = {{BigInteger.ONE, BigInteger.ZERO}, {BigInteger.ZERO, BigInteger.ONE}};
+        BigInteger[][] transformMatrix = new BigInteger[][] {{BigInteger.ONE, BigInteger.ONE},{BigInteger.ONE, BigInteger.ZERO}};
 
-        long counter = n.longValue();
-        while (counter > 0) {
-            if (counter % 2 == 1) {
+        BigInteger counter = n;
+        while (counter.compareTo(BigInteger.ZERO) > 0) {
+            if (counter.mod(BigInteger.valueOf(2)).equals(BigInteger.ONE)) {
                 result = multiplyMatrices(result, transformMatrix);
             }
-            counter = counter / 2;
+            counter = counter.divide(BigInteger.valueOf(2));
             transformMatrix = multiplyMatrices(transformMatrix, transformMatrix);
         }
 
-        return BigInteger.valueOf(result[1][0]);
+        return result[1][0];
     }
 
-    private long[][] multiplyMatrices(long[][] a, long[][] b) {
+    private BigInteger[][] multiplyMatrices(BigInteger[][] a, BigInteger[][] b) {
         int aRows = a.length;
         int aColumns = a[0].length;
         int bRows = b.length;
         int bColumns = b[0].length;
-        long[][] result = new long[aRows][bColumns];
+        BigInteger[][] result = new BigInteger[aRows][bColumns];
         for (int i = 0; i < aRows; i++) {
             for (int j = 0; j < bColumns; j++) {
+                result[i][j] = BigInteger.ZERO;
                 for (int k = 0; k < aColumns; k++) {
-                    result[i][j] += a[i][k] * b[k][j];
+                    result[i][j] = result[i][j].add(a[i][k].multiply(b[k][j]));
                 }
             }
         }
