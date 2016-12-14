@@ -7,6 +7,7 @@ import java.util.stream.IntStream;
  */
 public class NextDigit {
 
+    private final static long NO_NEXT_VALUE_RESULT = -1;
 
     private final long sourceValue;
 
@@ -14,10 +15,19 @@ public class NextDigit {
         this.sourceValue = sourceValue;
     }
 
+    public long nextBigger() {
+        return nextNumber(Rule.BIGGER);
+    }
+
     public long nextSmaller() {
+        return nextNumber(Rule.SMALLER);
+    }
+
+
+    private long nextNumber(Rule rule) {
 
         if (sourceValue < 10) {
-            return -1;
+            return NO_NEXT_VALUE_RESULT;
         }
 
 
@@ -25,26 +35,51 @@ public class NextDigit {
 
         for (int groupSize = 2; groupSize <= digits.length; groupSize++) {
 
-            int minLessValue = -1;
-            int minLessValueIndex = -1;
+            int changeDigit = rule.emptyChangeValue;
+            int changeDigitIndex = -1;
             int groupLeadingDigitIndex = digits.length - groupSize;
             byte groupLeadingDigit = digits[groupLeadingDigitIndex];
-            for (int findLessIndex = digits.length - 1; findLessIndex > groupLeadingDigitIndex; findLessIndex--) {
-                if (digits[findLessIndex] < groupLeadingDigit && digits[findLessIndex] > minLessValue) {
-                    minLessValue = digits[findLessIndex];
-                    minLessValueIndex = findLessIndex;
+            for (int possibleChangeDigitIndex = digits.length - 1; possibleChangeDigitIndex > groupLeadingDigitIndex; possibleChangeDigitIndex--) {
+
+                boolean isChangeFound = false;
+                switch (rule) {
+                    case BIGGER: {
+                        isChangeFound = digits[possibleChangeDigitIndex] > groupLeadingDigit
+                                && digits[possibleChangeDigitIndex] < changeDigit;
+                        break;
+                    }
+                    case SMALLER: {
+                        isChangeFound = digits[possibleChangeDigitIndex] < groupLeadingDigit
+                                && digits[possibleChangeDigitIndex] > changeDigit;
+                        break;
+                    }
+
+
+                }
+                if (isChangeFound) {
+                    changeDigit = digits[possibleChangeDigitIndex];
+                    changeDigitIndex = possibleChangeDigitIndex;
                 }
             }
 
-            if (minLessValue != -1 && !(minLessValue == 0 && groupLeadingDigitIndex == 0)) {
-                byte buffer = digits[minLessValueIndex];
-                digits[minLessValueIndex] = digits[groupLeadingDigitIndex];
+            if (changeDigit != rule.emptyChangeValue && !(changeDigit == 0 && groupLeadingDigitIndex == 0)) {
+                byte buffer = digits[changeDigitIndex];
+                digits[changeDigitIndex] = digits[groupLeadingDigitIndex];
                 digits[digits.length - groupSize] = buffer;
                 int[] sortedPart = IntStream.rangeClosed(groupLeadingDigitIndex + 1, digits.length - 1)
                         .map(i -> digits[i]).sorted().toArray();
 
                 for (int i = 0; i < sortedPart.length; i++) {
-                    digits[digits.length - 1 - i] = (byte) sortedPart[i];
+                    switch (rule) {
+                        case BIGGER: {
+                            digits[digits.length - sortedPart.length + i] = (byte) sortedPart[i];
+                            break;
+                        }
+                        case SMALLER: {
+                            digits[digits.length - 1 - i] = (byte) sortedPart[i];
+                            break;
+                        }
+                    }
                 }
 
                 return combineToNumber(digits);
@@ -52,7 +87,7 @@ public class NextDigit {
             }
         }
 
-        return -1;
+        return NO_NEXT_VALUE_RESULT;
     }
 
     private byte[] splitToDigits(long n) {
@@ -77,5 +112,15 @@ public class NextDigit {
         }
 
         return result;
+    }
+
+    private enum Rule {
+        BIGGER(10), SMALLER(-1);
+
+        private int emptyChangeValue;
+
+        Rule(int emptyChangeValue) {
+            this.emptyChangeValue = emptyChangeValue;
+        }
     }
 }
