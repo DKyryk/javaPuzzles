@@ -30,6 +30,7 @@ public class GhostInTheCell {
     private static Set<Integer> PLANNED_MY = new HashSet<>();
     private static Set<Integer> BOMB_TARGET = new HashSet<>();
 
+    private static Set<Integer> CHOSEN_TO_GET = new HashSet<>();
     private static Set<Troop> TROOPS = new HashSet<>();
     private static int HIGHEST_PRODUCTION = 0;
 
@@ -111,6 +112,7 @@ public class GhostInTheCell {
         MY_FACTORIES.clear();
         PLANNED_MY.clear();
         BOMB_TARGET.clear();
+        CHOSEN_TO_GET.clear();
         TROOPS.clear();
         for (int i = 0; i < FACTORY_COUNT; i++) {
             FACTORY_OWNER[i] = RESET;
@@ -167,7 +169,9 @@ public class GhostInTheCell {
         for (int myFactoryId : nonPlannedMy) {
             List<Pair> possibleOptions = new ArrayList<>();
             for (int targetId = 0; targetId < FACTORY_COUNT; targetId++) {
-                if (FACTORY_OWNER[targetId] != MY && !BOMB_TARGET.contains(targetId)) {
+                if (FACTORY_OWNER[targetId] != MY
+                        && !BOMB_TARGET.contains(targetId)
+                        && !CHOSEN_TO_GET.contains(targetId)) {
                     int atArrival = calculateTroopsAtArrival(myFactoryId, targetId);
                     if (atArrival < FACTORY_CYBORGS[myFactoryId] && atArrival > 0) {
                         possibleOptions.add(new Pair(targetId, FACTORY_PRODUCTION[targetId]));
@@ -180,6 +184,7 @@ public class GhostInTheCell {
             if (action.isPresent()) {
                 actions.add(action.get());
                 PLANNED_MY.add(myFactoryId);
+                CHOSEN_TO_GET.add(action.get().destination);
             }
         }
         return actions;
