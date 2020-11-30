@@ -30,6 +30,7 @@ public class GhostInTheCell {
     private static Set<Integer> PLANNED_MY = new HashSet<>();
     private static Set<Integer> BOMB_TARGET = new HashSet<>();
 
+    private static Set<Troop> TROOPS = new HashSet<>();
     private static int HIGHEST_PRODUCTION = 0;
 
     private static int BOMB_LEFT = 2;
@@ -52,14 +53,11 @@ public class GhostInTheCell {
         FACTORY_OWNER = new int[FACTORY_COUNT];
         FACTORY_CYBORGS = new int[FACTORY_COUNT];
         FACTORY_PRODUCTION = new int[FACTORY_COUNT];
-        HIGHEST_PRODUCTION = IntStream.of(FACTORY_PRODUCTION)
-                .max()
-                .orElse(3);
-        int[][] enemiesAtArrival = new int[FACTORY_COUNT][FACTORY_COUNT];
+
         // game loop
 
         while (true) {
-            clear(enemiesAtArrival);
+            clear();
 
             int entityCount = in.nextInt(); // the number of entities (e.g. factories and troops)
             for (int i = 0; i < entityCount; i++) {
@@ -82,6 +80,7 @@ public class GhostInTheCell {
                     int target = in.nextInt();
                     int count = in.nextInt();
                     int arriveIn = in.nextInt();
+                    TROOPS.add(new Troop(owner, target, count, arriveIn));
                 }
                 if (Type.BOMB.name().equals(entityType)) {
                     int owner = in.nextInt();
@@ -94,6 +93,9 @@ public class GhostInTheCell {
                     in.nextInt(); //unused
                 }
             }
+            HIGHEST_PRODUCTION = IntStream.of(FACTORY_PRODUCTION)
+                    .max()
+                    .orElse(3);
 
             List<Action> actions = getActions();
             if (actions.isEmpty()) {
@@ -105,17 +107,15 @@ public class GhostInTheCell {
         }
     }
 
-    private static void clear(int[][] enemiesAtArrival) {
+    private static void clear() {
         MY_FACTORIES.clear();
         PLANNED_MY.clear();
         BOMB_TARGET.clear();
+        TROOPS.clear();
         for (int i = 0; i < FACTORY_COUNT; i++) {
             FACTORY_OWNER[i] = RESET;
             FACTORY_CYBORGS[i] = RESET;
             FACTORY_PRODUCTION[i] = RESET;
-            for (int j = 0; j < FACTORY_COUNT; j++) {
-                enemiesAtArrival[i][j] = RESET;
-            }
         }
     }
 
@@ -167,9 +167,9 @@ public class GhostInTheCell {
         for (int myFactoryId : nonPlannedMy) {
             List<Pair> possibleOptions = new ArrayList<>();
             for (int targetId = 0; targetId < FACTORY_COUNT; targetId++) {
-                if (FACTORY_OWNER[targetId] != MY) {
-                    int atArrival = FACTORY_CYBORGS[targetId] + FACTORY_PRODUCTION[targetId] * DISTANCES[targetId][myFactoryId];
-                    if (atArrival < FACTORY_CYBORGS[myFactoryId]) {
+                if (FACTORY_OWNER[targetId] != MY && !BOMB_TARGET.contains(targetId)) {
+                    int atArrival = calculateTroopsAtArrival(myFactoryId, targetId);
+                    if (atArrival < FACTORY_CYBORGS[myFactoryId] && atArrival > 0) {
                         possibleOptions.add(new Pair(targetId, FACTORY_PRODUCTION[targetId]));
                     }
                 }
@@ -183,6 +183,22 @@ public class GhostInTheCell {
             }
         }
         return actions;
+    }
+
+    private static int calculateTroopsAtArrival(int myFactoryId, int targetId) {
+        int arrivalTime = DISTANCES[targetId][myFactoryId];
+        int count = FACTORY_CYBORGS[targetId] + FACTORY_PRODUCTION[targetId] * arrivalTime;
+        for (Troop troop : TROOPS) {
+            if (troop.target == targetId && troop.arriveIn < arrivalTime) {
+                if (troop.owner == ENEMY) {
+                    count = count + troop.count;
+                } else if (troop.owner == MY) {
+                    count = count - troop.count;
+                }
+            }
+        }
+
+        return count;
     }
 
     private static List<Action> clearWithZeroProduction() {
@@ -241,6 +257,20 @@ public class GhostInTheCell {
         int source;
         int destination;
         abstract String print();
+    }
+
+    private static class Troop {
+        int owner;
+        int target;
+        int count;
+        int arriveIn;
+
+        private Troop(int owner, int target, int count, int arriveIn) {
+            this.owner = owner;
+            this.target = target;
+            this.count = count;
+            this.arriveIn = arriveIn;
+        }
     }
 
     private static class Move extends Action {
