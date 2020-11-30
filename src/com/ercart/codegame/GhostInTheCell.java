@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.stream.IntStream;
 
 import static java.util.stream.Collectors.joining;
 
@@ -27,6 +28,9 @@ public class GhostInTheCell {
     private static int[][] DISTANCES;
     private static Set<Integer> MY_FACTORIES = new HashSet<>();
     private static Set<Integer> PLANNED_MY = new HashSet<>();
+    private static Set<Integer> BOMB_TARGET = new HashSet<>();
+
+    private static int HIGHEST_PRODUCTION = 0;
 
     private static int BOMB_LEFT = 2;
 
@@ -48,20 +52,15 @@ public class GhostInTheCell {
         FACTORY_OWNER = new int[FACTORY_COUNT];
         FACTORY_CYBORGS = new int[FACTORY_COUNT];
         FACTORY_PRODUCTION = new int[FACTORY_COUNT];
+        HIGHEST_PRODUCTION = IntStream.of(FACTORY_PRODUCTION)
+                .max()
+                .orElse(3);
         int[][] enemiesAtArrival = new int[FACTORY_COUNT][FACTORY_COUNT];
         // game loop
 
         while (true) {
-            MY_FACTORIES.clear();
-            PLANNED_MY.clear();
-            for (int i = 0; i < FACTORY_COUNT; i++) {
-                FACTORY_OWNER[i] = RESET;
-                FACTORY_CYBORGS[i] = RESET;
-                FACTORY_PRODUCTION[i] = RESET;
-                for (int j = 0; j < FACTORY_COUNT; j++) {
-                    enemiesAtArrival[i][j] = RESET;
-                }
-            }
+            clear(enemiesAtArrival);
+
             int entityCount = in.nextInt(); // the number of entities (e.g. factories and troops)
             for (int i = 0; i < entityCount; i++) {
                 int entityId = in.nextInt();
@@ -88,7 +87,10 @@ public class GhostInTheCell {
                     int owner = in.nextInt();
                     int source = in.nextInt();
                     int target = in.nextInt();
-                    int count = in.nextInt();
+                    int arriveIn = in.nextInt();
+                    if (owner == MY) {
+                        BOMB_TARGET.add(target);
+                    }
                     in.nextInt(); //unused
                 }
             }
@@ -99,6 +101,20 @@ public class GhostInTheCell {
             }
             else {
                 System.out.println(actions.stream().map(Action::print).collect(joining(";")));
+            }
+        }
+    }
+
+    private static void clear(int[][] enemiesAtArrival) {
+        MY_FACTORIES.clear();
+        PLANNED_MY.clear();
+        BOMB_TARGET.clear();
+        for (int i = 0; i < FACTORY_COUNT; i++) {
+            FACTORY_OWNER[i] = RESET;
+            FACTORY_CYBORGS[i] = RESET;
+            FACTORY_PRODUCTION[i] = RESET;
+            for (int j = 0; j < FACTORY_COUNT; j++) {
+                enemiesAtArrival[i][j] = RESET;
             }
         }
     }
@@ -121,9 +137,9 @@ public class GhostInTheCell {
     private static Action bomb() {
 
         for (int targetId = 0; targetId < FACTORY_COUNT; targetId++) {
-            if (FACTORY_OWNER[targetId] != MY
-                    && FACTORY_PRODUCTION[targetId] == 3
-                    && FACTORY_CYBORGS[targetId] > 50) {
+            if (FACTORY_OWNER[targetId] == ENEMY
+                    && FACTORY_PRODUCTION[targetId] == HIGHEST_PRODUCTION
+                    && !BOMB_TARGET.contains(targetId)) {
                 Optional<Integer> id = findNearestNonPlannedMy(targetId);
                 if (id.isPresent()) {
                     return new Bomb(id.get(), targetId);
@@ -149,16 +165,21 @@ public class GhostInTheCell {
         nonPlannedMy.removeAll(PLANNED_MY);
         List<Action> actions = new ArrayList<>();
         for (int myFactoryId : nonPlannedMy) {
+            List<Pair> possibleOptions = new ArrayList<>();
             for (int targetId = 0; targetId < FACTORY_COUNT; targetId++) {
                 if (FACTORY_OWNER[targetId] != MY) {
                     int atArrival = FACTORY_CYBORGS[targetId] + FACTORY_PRODUCTION[targetId] * DISTANCES[targetId][myFactoryId];
                     if (atArrival < FACTORY_CYBORGS[myFactoryId]) {
-                        //move to factory
-                        actions.add(new Move(myFactoryId, targetId, FACTORY_CYBORGS[myFactoryId]));
-                        PLANNED_MY.add(myFactoryId);
-                        break;
+                        possibleOptions.add(new Pair(targetId, FACTORY_PRODUCTION[targetId]));
                     }
                 }
+            }
+            Optional<Action> action = possibleOptions.stream()
+                    .max(Pair::compareTo)
+                    .map(p -> new Move(myFactoryId, p.id, FACTORY_CYBORGS[myFactoryId]));
+            if (action.isPresent()) {
+                actions.add(action.get());
+                PLANNED_MY.add(myFactoryId);
             }
         }
         return actions;
@@ -198,16 +219,16 @@ public class GhostInTheCell {
 
     private static class Pair implements Comparable<Pair> {
         int id;
-        int distance;
+        int value;
 
-        private Pair(int id, int distance) {
+        private Pair(int id, int value) {
             this.id = id;
-            this.distance = distance;
+            this.value = value;
         }
 
         @Override
         public int compareTo(Pair o) {
-            return Integer.compare(distance, o.distance);
+            return Integer.compare(value, o.value);
         }
     }
 
