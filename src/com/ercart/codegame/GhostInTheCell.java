@@ -123,10 +123,14 @@ public class GhostInTheCell {
 
     private static List<Action> getActions() {
         List<Action> result = new ArrayList<>();
+        //rethink this
         result.addAll(factoryIncrease());
+        //defend that's under attack
         result.addAll(moveToOccupy());
+        //attack nearest non zero
         result.addAll(clearWithZeroProduction());
 
+        //rework to use bomb from tracking
         if (BOMB_LEFT != 0) {
             Action bombApplicable = bomb();
             if (bombApplicable != null) {
