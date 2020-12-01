@@ -123,6 +123,7 @@ public class GhostInTheCell {
 
     private static List<Action> getActions() {
         List<Action> result = new ArrayList<>();
+        result.addAll(factoryIncrease());
         result.addAll(moveToOccupy());
         result.addAll(clearWithZeroProduction());
 
@@ -134,6 +135,20 @@ public class GhostInTheCell {
             }
         }
         return result;
+    }
+
+    private static List<Action> factoryIncrease() {
+        Set<Integer> nonPlannedMy = new HashSet<>();
+        nonPlannedMy.addAll(MY_FACTORIES);
+        nonPlannedMy.removeAll(PLANNED_MY);
+        List<Action> actions = new ArrayList<>();
+        for (int myFactoryId : nonPlannedMy) {
+            if (FACTORY_PRODUCTION[myFactoryId] == 2 && FACTORY_CYBORGS[myFactoryId] > 15) {
+                actions.add(new FactoryIncrease(myFactoryId));
+                PLANNED_MY.add(myFactoryId);
+            }
+        }
+        return actions;
     }
 
     private static Action bomb() {
@@ -167,24 +182,23 @@ public class GhostInTheCell {
         nonPlannedMy.removeAll(PLANNED_MY);
         List<Action> actions = new ArrayList<>();
         for (int myFactoryId : nonPlannedMy) {
-            List<Pair> possibleOptions = new ArrayList<>();
+            List<TargetOption> possibleOptions = new ArrayList<>();
             for (int targetId = 0; targetId < FACTORY_COUNT; targetId++) {
                 if (FACTORY_OWNER[targetId] != MY
                         && !BOMB_TARGET.contains(targetId)
                         && !CHOSEN_TO_GET.contains(targetId)) {
                     int atArrival = calculateTroopsAtArrival(myFactoryId, targetId);
                     if (atArrival < FACTORY_CYBORGS[myFactoryId] && atArrival > 0) {
-                        possibleOptions.add(new Pair(targetId, FACTORY_PRODUCTION[targetId]));
+                        possibleOptions.add(new TargetOption(targetId, atArrival, FACTORY_PRODUCTION[targetId]));
                     }
                 }
             }
-            Optional<Action> action = possibleOptions.stream()
-                    .max(Pair::compareTo)
-                    .map(p -> new Move(myFactoryId, p.id, FACTORY_CYBORGS[myFactoryId]));
-            if (action.isPresent()) {
-                actions.add(action.get());
+            Optional<TargetOption> targetOption = possibleOptions.stream()
+                    .max(TargetOption::compareTo);
+            if (targetOption.isPresent()) {
+                actions.add(new Move(myFactoryId, targetOption.get().factoryId, targetOption.get().cyborgsAtArrival + 1));
                 PLANNED_MY.add(myFactoryId);
-                CHOSEN_TO_GET.add(action.get().destination);
+                CHOSEN_TO_GET.add(targetOption.get().factoryId);
             }
         }
         return actions;
@@ -238,6 +252,23 @@ public class GhostInTheCell {
                 .orElse(-1);
     }
 
+    private static class TargetOption implements Comparable<TargetOption> {
+        int factoryId;
+        int cyborgsAtArrival;
+        int factoryProduction;
+
+        private TargetOption(int factoryId, int cyborgsAtArrival, int factoryProduction) {
+            this.factoryId = factoryId;
+            this.cyborgsAtArrival = cyborgsAtArrival;
+            this.factoryProduction = factoryProduction;
+        }
+
+        @Override
+        public int compareTo(TargetOption o) {
+            return Integer.compare(factoryProduction, o.factoryProduction);
+        }
+    }
+
     private static class Pair implements Comparable<Pair> {
         int id;
         int value;
@@ -254,13 +285,11 @@ public class GhostInTheCell {
     }
 
     private static abstract class Action {
-        private Action(int source, int destination) {
+        private Action(int source) {
             this.source = source;
-            this.destination = destination;
         }
 
         int source;
-        int destination;
         abstract String print();
     }
 
@@ -280,10 +309,12 @@ public class GhostInTheCell {
 
     private static class Move extends Action {
         int count;
+        int destination;
 
         private Move(int source, int destination, int count) {
-            super(source, destination);
+            super(source);
             this.count = count;
+            this.destination = destination;
         }
 
         @Override
@@ -294,13 +325,28 @@ public class GhostInTheCell {
 
     private static class Bomb extends Action {
 
+        int destination;
+
         private Bomb(int source, int destination) {
-            super(source, destination);
+            super(source);
+            this.destination = destination;
         }
 
         @Override
         String print() {
             return "BOMB " + source + " " + destination;
+        }
+    }
+
+    private static class FactoryIncrease extends Action {
+
+        private FactoryIncrease(int source) {
+            super(source);
+        }
+
+        @Override
+        String print() {
+            return "INC " + source;
         }
     }
 
