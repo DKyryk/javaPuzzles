@@ -33,12 +33,12 @@ public class Aneo {
 
     private static boolean isAllLightsGreenAtSpeed(int speed, List<Light> lights) {
 
-        BigDecimal speedInMetersPerSecond = BigDecimal.valueOf(speed).setScale(4, BigDecimal.ROUND_UP)
-                .multiply(BigDecimal.valueOf(1000)).divide(BigDecimal.valueOf(3600), BigDecimal.ROUND_UP);
+        int speedInMetersPerHour = speed * 1000;
         for (Light light : lights) {
             BigDecimal intervalAtArrival = BigDecimal.valueOf(light.distance)
                     .setScale(4, BigDecimal.ROUND_UP)
-                    .divide(speedInMetersPerSecond, BigDecimal.ROUND_UP)
+                    .multiply(BigDecimal.valueOf(3600))
+                    .divide(BigDecimal.valueOf(speedInMetersPerHour), BigDecimal.ROUND_UP)
                     .divide(BigDecimal.valueOf(light.duration), BigDecimal.ROUND_UP);
             BigInteger interval = intervalAtArrival.toBigInteger();
             if (interval.intValue() % 2 == 1) {
