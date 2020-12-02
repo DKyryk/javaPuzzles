@@ -1,4 +1,4 @@
-package com.ercart.codegame;
+package com.ercart.codegame.bots;
 
 import java.util.ArrayList;
 import java.util.HashSet;

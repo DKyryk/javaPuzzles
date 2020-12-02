@@ -1,4 +1,4 @@
-package com.ercart.codegame;
+package com.ercart.codegame.puzzles.medium;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
