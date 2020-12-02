@@ -7,8 +7,6 @@ import java.util.Scanner;
  */
 public class SearchRace {
 
-    private static final float COEF = 0.85F;
-
     public static void main(String args[]) {
 
         Scanner in = new Scanner(System.in);
@@ -32,45 +30,41 @@ public class SearchRace {
             int vx = in.nextInt(); // horizontal speed. Positive is right
             int vy = in.nextInt(); // vertical speed. Positive is downwards
             int angle = in.nextInt(); // facing angle of this car
-            Point currentSpeedNextPoint = new Point(car.x + vx, car.y + vy);
+            Point nextPoint = new Point(car.x + vx, car.y + vy);
 
             // Write an action using System.out.println()
             // To debug: System.err.println("Debug messages...");
 
-            int thrust = getThrust(car, target, currentSpeedNextPoint, angle);
+            int thrust = getThrust(car, target, nextPoint, angle);
             System.out.println(target.x + " " + target.y + " " + thrust);
         }
     }
 
-    private static int getThrust(Point car, Point target, Point currentSpeedNextPoint, int angle) {
+    private static int getThrust(Point car, Point target, Point nextPoint, int angle) {
 
         float targetAngle = car.getAngle(target);
         float angleDiff = Math.abs(targetAngle - angle);
-        float targetDistance = car.getDistance(target);
-        float distanceCurrentSpeed = car.getDistance(currentSpeedNextPoint);
-
-        if (angleDiff > 110) {
-            return 0;
-        }
-        if (angleDiff > 60) {
-            return 10;
+        if (angleDiff > 180) {
+            angleDiff = 360 - angleDiff;
         }
         if (angleDiff > 20) {
-            if (targetDistance < speed(distanceCurrentSpeed, 40)) {
-                return 20;
-            }
-            return 40;
+            return 0;
         }
+        float distanceNextPoint = car.getDistance(nextPoint);
 
-        float steps = targetDistance / (speed(distanceCurrentSpeed, 200));
-        if (steps < 3) {
-            return 20;
+        if (distanceNextPoint > 0) {
+            float targetDistance = car.getDistance(target);
+            float steps = targetDistance / distanceNextPoint;
+            if (steps < 5) {
+                return 0;
+            }
+            if (steps < 10) {
+                double delta = (distanceNextPoint * 0.15) / 0.85;
+                return  (int) Math.round(delta);
+            }
+
         }
         return 200;
-    }
-
-    private static float speed(float current, int adj) {
-        return (current + adj) * COEF;
     }
 
     private static class Point {
