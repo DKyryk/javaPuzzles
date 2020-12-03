@@ -1,10 +1,8 @@
 package com.ercart.codegame.puzzles.hard;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
@@ -15,7 +13,7 @@ import java.util.Set;
  */
 public class Surface {
 
-    private static Map<Point, Lake> LAKES_PER_POINT = new HashMap<>();
+    private static Lake[][] LAKES;
     private static int LAKE_ID = 1;
 
     public static void main(String args[]) {
@@ -26,15 +24,12 @@ public class Surface {
             in.nextLine();
         }
 
-        int[][] surface = new int[height][width];
+        LAKES = new Lake[height][width];
         for (int y = 0; y < height; y++) {
             String row = in.nextLine();
             for (int x = 0; x < row.length(); x++) {
-                if (row.charAt(x) == '#') {
-                    surface[y][x] = 0;
-                } else {
-                    surface[y][x] = 1;
-                    analyzePoint(surface, x, y);
+                if (row.charAt(x) == 'O') {
+                    analyzePoint(x, y);
                 }
             }
         }
@@ -48,7 +43,7 @@ public class Surface {
         }
         for (Point point : points) {
 
-            int result = Optional.ofNullable(LAKES_PER_POINT.get(point))
+            int result = Optional.ofNullable(LAKES[point.y][point.x])
                     .map(Lake::size)
                     .orElse(0);
 
@@ -56,13 +51,13 @@ public class Surface {
         }
     }
 
-    private static void analyzePoint(int[][] surface, int x, int y) {
+    private static void analyzePoint(int x, int y) {
         Point current = new Point(x, y);
-        Lake up = getAdjacentUp(surface, x, y);
-        Lake left = getAdjacentLeft(surface, x, y);
+        Lake up = getAdjacentUp(x, y);
+        Lake left = getAdjacentLeft(x, y);
         if (up == null && left == null) {
             Lake lake = new Lake(current);
-            LAKES_PER_POINT.put(current, lake);
+            LAKES[current.y][current.x] = lake;
         } else if (up == null) {
             combineWithLake(current, left);
         } else if (left == null) {
@@ -86,32 +81,28 @@ public class Surface {
 
     private static void addToBiggest(Point current, Lake aggregator, Lake add) {
         aggregator.getPoints().add(current);
-        LAKES_PER_POINT.put(current, aggregator);
+        LAKES[current.y][current.x] = aggregator;
         aggregator.getPoints().addAll(add.getPoints());
         for (Point point : add.getPoints()) {
-            LAKES_PER_POINT.put(point, aggregator);
+            LAKES[point.y][point.x] = aggregator;
         }
     }
 
     private static void combineWithLake(Point current, Lake lake) {
         lake.getPoints().add(current);
-        LAKES_PER_POINT.put(current, lake);
+        LAKES[current.y][current.x] = lake;
     }
 
-    private static Lake getAdjacentUp(int[][] surface, int x, int y) {
+    private static Lake getAdjacentUp(int x, int y) {
         if (y != 0) {
-            if (surface[y - 1][x] == 1) {
-                return LAKES_PER_POINT.get(new Point(x, y - 1));
-            }
+            return LAKES[y - 1][x];
         }
         return null;
     }
 
-    private static Lake getAdjacentLeft(int[][] surface, int x, int y) {
+    private static Lake getAdjacentLeft(int x, int y) {
         if (x != 0) {
-            if (surface[y][x - 1] == 1) {
-                return LAKES_PER_POINT.get(new Point(x - 1, y));
-            }
+            return LAKES[y][x - 1];
         }
         return null;
     }
