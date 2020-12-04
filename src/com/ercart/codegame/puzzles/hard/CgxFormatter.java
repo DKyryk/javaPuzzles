@@ -49,11 +49,7 @@ public class CgxFormatter {
         Node root = Node.createRoot();
         root.prefix = "";
         parseContent(root, minimized, 0);
-        if (root.children.isEmpty()) {
-            return root.print();
-        } else {
-            return root.children.get(0).print();
-        }
+        return root.print();
     }
 
     private static String setLiterals(String structure) {
@@ -105,10 +101,14 @@ public class CgxFormatter {
                     String fields = source.substring(unprocessedFieldsStartIndex, i);
                     addSimpleFields(node, fields);
                 }
-                break;
+                return;
             } else {
                 i++;
             }
+        }
+        if (unprocessedFieldsStartIndex < i) {
+            String fields = source.substring(unprocessedFieldsStartIndex, i);
+            addSimpleFields(node, fields);
         }
     }
 
@@ -149,14 +149,18 @@ public class CgxFormatter {
             if (name != null) {
                 builder.append(prefix).append(name).append("=").append(CR);
             }
-            builder.append(prefix).append("(").append(CR);
+            if (!isRoot) {
+                builder.append(prefix).append("(").append(CR);
+            }
             if (!children.isEmpty()) {
                 String childrenPrint = children.stream()
                         .map(Node::print)
                         .collect(joining(";" + CR));
                 builder.append(childrenPrint).append(CR);
             }
-            builder.append(prefix).append(")");
+            if (!isRoot) {
+                builder.append(prefix).append(")");
+            }
             return builder.toString();
         }
 
