@@ -16,7 +16,7 @@ import static java.util.stream.Collectors.joining;
  */
 public class CgxFormatter {
 
-    private static final String PREFIX = "__";
+    private static final String PREFIX = "    ";
     private static final  Map<String, String> LITERALS = new HashMap<>();
     private static final int LITERAL_KEY_LENGTH = 6;
 
